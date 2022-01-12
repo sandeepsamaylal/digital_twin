@@ -15,6 +15,10 @@ isaac_jupyter_app(
     name = "simple_joint_control",
     data = [
         "//apps/assets/kinematic_trees",
+        "//apps/assets/lula_assets",
+        "//packages/navsim/apps:navsim_tcp_subgraph",
+        "//packages/planner/apps:multi_joint_lqr_control_subgraph",
+        "//packages/planner/apps:multi_joint_rmp_control_subgraph",
         "//packages/universal_robots/ur_robot_driver/apps:ur_eseries_robot_subgraph",
         "//packages/universal_robots/ur_robot_driver/apps:ur_cb3_robot_subgraph",
     ],
