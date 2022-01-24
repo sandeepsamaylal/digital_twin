@@ -51,13 +51,11 @@ def create_composite_atlas(cask_root, joints):
     cask.write_message(
         create_composite_waypoint("dolly_dropoff", quantities, DOLLY_DROPOFF_WAYPOINT))
 
-    quantities = [[x, "none", 1] for x in ["pump", "valve", "gripper"]]
-    SUCTION_ON_WAYPOINT = np.array([1.0, 0.0, 1.0], dtype=np.dtype("float64"))
-    SUCTION_OFF_WAYPOINT = np.array([0.0, 1.0, 0.0], dtype=np.dtype("float64"))
-    VALVE_OFF_WAYPOINT = np.array([0.0, 0.0, 0.0], dtype=np.dtype("float64"))
-    cask.write_message(create_composite_waypoint("suction_on", quantities, SUCTION_ON_WAYPOINT))
-    cask.write_message(create_composite_waypoint("suction_off", quantities, SUCTION_OFF_WAYPOINT))
-    cask.write_message(create_composite_waypoint("valve_off", quantities, VALVE_OFF_WAYPOINT))
+    quantities = [[x, "none", 1] for x in ["open", "close"]]
+    OPEN_WAYPOINT = np.array([1.0, 0.0], dtype=np.dtype("float64"))
+    CLOSE_WAYPOINT = np.array([0.0, 1.0], dtype=np.dtype("float64"))
+    cask.write_message(create_composite_waypoint("open", quantities, OPEN_WAYPOINT))
+    cask.write_message(create_composite_waypoint("close", quantities, CLOSE_WAYPOINT))
 
 if __name__ == '__main__':
     # Parse arguments
@@ -88,6 +86,8 @@ if __name__ == '__main__':
     app.load("packages/universal_robots/apps/shuffle_box_behavior_hardware.subgraph.json", prefix="behavior")
     behavior_interface = app.nodes["behavior.interface"]["subgraph"]
     app.nodes["behavior.atlas"]["CompositeAtlas"].config.cask = args.cask
+    app.load("packages/planner/apps/multi_joint_lqr_control.subgraph.json", prefix="lqr")
+    app.load("packages/navsim/apps/navsim_tcp.subgraph.json", "simulation")
 
     # Load driver subgraph
     generation = args.generation
@@ -103,19 +103,38 @@ if __name__ == '__main__':
     ur_controller = app.nodes["ur.controller"]["ScaledMultiJointController"]
     ur_driver = app.nodes["ur.universal_robots"]["UniversalRobots"]
 
+    lqr_interface = app.nodes["lqr.subgraph"]["interface"]
+    kinematic_tree = app.nodes["lqr.kinematic_tree"]["KinematicTree"]
+    lqr_planner = app.nodes["lqr.local_plan"]["MultiJointLqrPlanner"]
+    sim_in = app.nodes["simulation.interface"]["input"]
+    sim_out = app.nodes["simulation.interface"]["output"]
+
+    # load multi joint lqr control subgraph
+    app.connect(behavior_interface, "joint_target", lqr_interface, "joint_target")
+    kinematic_tree.config.kinematic_file = kinematic_file
+    lqr_planner.config.speed_min = [-1.5] + [-1.0] * (len(joints) - 1)
+    lqr_planner.config.speed_max = [1.5] + [1.0] * (len(joints) - 1)
+    lqr_planner.config.acceleration_min = [-1.5] + [-1.0] * (len(joints) - 1)
+    lqr_planner.config.acceleration_max = [1.5] + [1.0] * (len(joints) - 1)
+
     # Configs
     ur_controller.config.control_mode = "joint position"
     ur_driver.config.control_mode = "joint position"
     ur_driver.config.robot_ip = args.robot_ip
     ur_driver.config.headless_mode = args.headless_mode
-    ur_driver.config.tool_digital_out_names = ["valve", "pump"]
-    ur_driver.config.tool_digital_in_names = ["unknown", "gripper"]
+    ur_driver.config.tool_digital_out_names = ["open", "close"]
 
     # Edges
     app.connect(ur_interface, "arm_state", behavior_interface, "joint_state")
     app.connect(ur_interface, "io_state", behavior_interface, "io_state")
     app.connect(behavior_interface, "io_command", ur_interface, "io_command")
     app.connect(behavior_interface, "joint_target", ur_interface, "joint_target")
+
+    app.connect(sim_out, "joint_state", lqr_interface, "joint_state")
+    app.connect(sim_out, "joint_state", behavior_interface, "joint_state")
+    app.connect(sim_out, "io_state", behavior_interface, "io_state")
+    app.connect(lqr_interface, "joint_command", sim_in, "joint_position")
+    app.connect(behavior_interface, "io_command", sim_in, "io_command")
 
     # Sequence nodes
     sequence_behavior = app.nodes["behavior.sequence_behavior"]
@@ -127,13 +146,10 @@ if __name__ == '__main__':
     widget.config.type = "plot"
     widget.config.channels = [
       {
-        "name": "ur.universal_robots/UniversalRobots/gripper"
+        "name": "ur.universal_robots/UniversalRobots/open"
       },
       {
-        "name": "ur.universal_robots/UniversalRobots/pump"
-      },
-      {
-        "name": "ur.universal_robots/UniversalRobots/valve"
+        "name": "ur.universal_robots/UniversalRobots/close"
       }
     ]
 

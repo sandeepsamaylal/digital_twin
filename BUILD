@@ -18,7 +18,6 @@ isaac_jupyter_app(
         "//apps/assets/lula_assets",
         "//packages/navsim/apps:navsim_tcp_subgraph",
         "//packages/planner/apps:multi_joint_lqr_control_subgraph",
-        "//packages/planner/apps:multi_joint_rmp_control_subgraph",
         "//packages/universal_robots/ur_robot_driver/apps:ur_eseries_robot_subgraph",
         "//packages/universal_robots/ur_robot_driver/apps:ur_cb3_robot_subgraph",
     ],
@@ -35,6 +34,9 @@ isaac_py_app(
     srcs = ["shuffle_box_hardware.py"],
     data = [
         "//apps/assets/kinematic_trees",
+        "//apps/assets/lula_assets",
+        "//packages/navsim/apps:navsim_tcp_subgraph",
+        "//packages/planner/apps:multi_joint_lqr_control_subgraph",
         "//packages/universal_robots/apps:shuffle_box_behavior_hardware_subgraph",
         "//packages/universal_robots/ur_robot_driver/apps:ur_eseries_robot_subgraph",
         "//packages/universal_robots/ur_robot_driver/apps:ur_cb3_robot_subgraph",
