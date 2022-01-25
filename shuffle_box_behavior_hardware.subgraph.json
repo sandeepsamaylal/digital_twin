@@ -78,7 +78,7 @@
         "disable_automatic_start": true
       },
       {
-        "name": "gripper_follow_path",
+        "name": "suction_follow_path",
         "components": [
           {
             "name": "ledger",
@@ -158,16 +158,6 @@
           }
         ],
         "disable_automatic_start": true
-      },
-      {
-        "name": "time_delay",
-        "components": [
-          {
-            "name": "TimerBehavior",
-            "type": "isaac::behavior_tree::TimerBehavior"
-          }
-        ],
-        "disable_automatic_start": true
       }
     ],
     "edges": [
@@ -184,16 +174,16 @@
         "target": "joint_follow_path/FollowPath/state"
       },
       {
-        "source": "gripper_follow_path/CompositePublisher/path",
-        "target": "gripper_follow_path/FollowPath/path"
+        "source": "suction_follow_path/CompositePublisher/path",
+        "target": "suction_follow_path/FollowPath/path"
       },
       {
-        "source": "gripper_follow_path/FollowPath/goal",
+        "source": "suction_follow_path/FollowPath/goal",
         "target": "interface/subgraph/io_command"
       },
       {
         "source": "interface/subgraph/io_state",
-        "target": "gripper_follow_path/FollowPath/state"
+        "target": "suction_follow_path/FollowPath/state"
       }
     ]
   },
@@ -204,23 +194,19 @@
           "$(fullname config_cart_lift)",
           "$(fullname joint_follow_path)",
           "$(fullname config_pickup)",
-          "$(fullname time_delay)",
-          "$(fullname gripper_follow_path)",
+          "$(fullname suction_follow_path)",
           "$(fullname config_cart_to_dolly)",
           "$(fullname joint_follow_path)",
           "$(fullname config_dropoff)",
-          "$(fullname time_delay)",
-          "$(fullname gripper_follow_path)",
+          "$(fullname suction_follow_path)",
           "$(fullname config_dolly_lift)",
           "$(fullname joint_follow_path)",
           "$(fullname config_pickup)",
-          "$(fullname time_delay)",
-          "$(fullname gripper_follow_path)",
+          "$(fullname suction_follow_path)",
           "$(fullname config_dolly_to_cart)",
           "$(fullname joint_follow_path)",
           "$(fullname config_dropoff)",
-          "$(fullname time_delay)",
-          "$(fullname gripper_follow_path)"
+          "$(fullname suction_follow_path)"
         ]
       }
     },
@@ -243,7 +229,7 @@
         "tolerance": 0.1
       }
     },
-    "gripper_follow_path": {
+    "suction_follow_path": {
       "CompositePublisher": {
         "tick_period": "30Hz",
         "atlas": "$(fullname atlas/CompositeAtlas)",
@@ -252,7 +238,7 @@
       "CompositeMetric": {
         "use_config_schema": true,
         "schema": {
-          "entity": ["open", "close"],
+          "entity": ["pump", "valve"],
           "measure": "none"
         }
       },
@@ -309,9 +295,9 @@
     "config_pickup": {
       "ConfigLoader": {
         "config": {
-          "behavior.gripper_follow_path": {
+          "behavior.suction_follow_path": {
             "CompositePublisher": {
-              "path": ["close"]
+              "path": ["suction_on"]
             }
           }
         }
@@ -320,17 +306,12 @@
     "config_dropoff": {
       "ConfigLoader": {
         "config": {
-          "behavior.gripper_follow_path": {
+          "behavior.suction_follow_path": {
             "CompositePublisher": {
-              "path": ["open"]
+              "path": ["suction_off", "valve_off"]
             }
           }
         }
-      }
-    },
-    "time_delay": {
-      "TimerBehavior": {
-        "delay": 1.0
       }
     }
   }

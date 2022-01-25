@@ -10,7 +10,8 @@ Moves a robot arm based on joint waypoints to pickup and dropoff a box between t
 locations repeatedly. This app assumes a vacuum pump is connected through the digital
 io interfaces. This is tested with a robot, without a gripper connected.
 '''
-
+# set the current working directory to the deployed package folder. This is required by isaac.
+# This cell should only run once.
 
 def create_composite_waypoint(name, quantities, values):
     '''Creates a CompositeProto message with name as uuid'''
@@ -51,17 +52,62 @@ def create_composite_atlas(cask_root, joints):
     cask.write_message(
         create_composite_waypoint("dolly_dropoff", quantities, DOLLY_DROPOFF_WAYPOINT))
 
+
+
+    quantities = [[x, "none", 1] for x in ["pump", "valve", "gripper"]]
+    SUCTION_ON_WAYPOINT = np.array([1.0, 0.0, 1.0], dtype=np.dtype("float64"))
+    SUCTION_OFF_WAYPOINT = np.array([0.0, 1.0, 0.0], dtype=np.dtype("float64"))
+    VALVE_OFF_WAYPOINT = np.array([0.0, 0.0, 0.0], dtype=np.dtype("float64"))
+    cask.write_message(create_composite_waypoint("suction_on", quantities, SUCTION_ON_WAYPOINT))
+    cask.write_message(create_composite_waypoint("suction_off", quantities, SUCTION_OFF_WAYPOINT))
+    cask.write_message(create_composite_waypoint("valve_off", quantities, VALVE_OFF_WAYPOINT))
+    '''
     quantities = [[x, "none", 1] for x in ["open", "close"]]
     OPEN_WAYPOINT = np.array([1.0, 0.0], dtype=np.dtype("float64"))
     CLOSE_WAYPOINT = np.array([0.0, 1.0], dtype=np.dtype("float64"))
     cask.write_message(create_composite_waypoint("open", quantities, OPEN_WAYPOINT))
     cask.write_message(create_composite_waypoint("close", quantities, CLOSE_WAYPOINT))
 
+    # gripper waypoints
+    quantities = [[x, "none", 1] for x in ["gripper"]]
+    GRIPPER_OPEN_WAYPOINT = np.array([0.0], dtype=np.dtype("float64"))
+    GRIPPER_CLOSE_WAYPOINT = np.array([1.0], dtype=np.dtype("float64"))
+    cask.write_message(create_composite_waypoint("gripper_open", quantities, GRIPPER_OPEN_WAYPOINT))
+    cask.write_message(
+        create_composite_waypoint("gripper_close", quantities, GRIPPER_CLOSE_WAYPOINT))
+    '''
+#gripper joint control to IO 
+def gripper_control(cask_root, joints):
+
+    PI = 3.1415927
+    #gripper limit [0,45 deg]
+    MAX_LIMIT = PI/4
+    MIN_LIMIT = 0
+
+    cask = Cask(cask_root, writable=True)
+
+    quantities = [[x, "none", 1] for x in ["gripper"]]
+    GRIPPER_OPEN_WAYPOINT = np.array([0.0], dtype=np.dtype("float64"))
+    GRIPPER_CLOSE_WAYPOINT = np.array([1.0], dtype=np.dtype("float64"))
+    finger1 = cask.read_message("finger_joint")
+    finger2 = cask.read_message("right_outer_knuckle_joint")
+
+    #gripper is open when it is in his max position, else it is closed, i think
+    if finger1 >= MAX_LIMIT:
+        cask.write_message(create_composite_waypoint("gripper_open", quantities, GRIPPER_OPEN_WAYPOINT))
+    else:
+        cask.write_message(create_composite_waypoint("gripper_close", quantities, GRIPPER_CLOSE_WAYPOINT))
+
+    if finger2 >= MAX_LIMIT:
+        cask.write_message(create_composite_waypoint("gripper_open", quantities, GRIPPER_OPEN_WAYPOINT))
+    else:
+        cask.write_message(create_composite_waypoint("gripper_close", quantities, GRIPPER_CLOSE_WAYPOINT))
+
 if __name__ == '__main__':
     # Parse arguments
     parser = argparse.ArgumentParser(description="Sortbot Demo")
     parser.add_argument("--cask", help="Path to output atlas", default="/tmp/shuffle_box_waypoints")
-    parser.add_argument("--generation", help="Robot generation.", choices=["cb3", "e-series"], default="e-series")
+    parser.add_argument("--generation", help="Robot generation.", choices=["cb3", "e-series"], default="cb3")
     parser.add_argument("--robot_ip", help="robot ip", default="192.168.0.100")
     parser.add_argument("--headless_mode", help="start driver with headless mode enabled or not",
                         default=False, type=lambda x: (str(x).lower() == 'true'))
@@ -103,32 +149,36 @@ if __name__ == '__main__':
     ur_controller = app.nodes["ur.controller"]["ScaledMultiJointController"]
     ur_driver = app.nodes["ur.universal_robots"]["UniversalRobots"]
 
-    lqr_interface = app.nodes["lqr.subgraph"]["interface"]
-    kinematic_tree = app.nodes["lqr.kinematic_tree"]["KinematicTree"]
-    lqr_planner = app.nodes["lqr.local_plan"]["MultiJointLqrPlanner"]
     sim_in = app.nodes["simulation.interface"]["input"]
     sim_out = app.nodes["simulation.interface"]["output"]
+    lqr_interface = app.nodes["lqr.subgraph"]["interface"]
 
-    # load multi joint lqr control subgraph
-    app.connect(behavior_interface, "joint_target", lqr_interface, "joint_target")
-    kinematic_tree.config.kinematic_file = kinematic_file
-    lqr_planner.config.speed_min = [-1.5] + [-1.0] * (len(joints) - 1)
-    lqr_planner.config.speed_max = [1.5] + [1.0] * (len(joints) - 1)
-    lqr_planner.config.acceleration_min = [-1.5] + [-1.0] * (len(joints) - 1)
-    lqr_planner.config.acceleration_max = [1.5] + [1.0] * (len(joints) - 1)
-
+    app.connect(sim_out, "joint_state", lqr_interface, "joint_state")
+    app.connect(lqr_interface, "joint_command", sim_in, "joint_position")
     # Configs
     ur_controller.config.control_mode = "joint position"
     ur_driver.config.control_mode = "joint position"
     ur_driver.config.robot_ip = args.robot_ip
     ur_driver.config.headless_mode = args.headless_mode
-    ur_driver.config.tool_digital_out_names = ["open", "close"]
+    ur_driver.config.tool_digital_out_names = ["valve", "pump"]
+    ur_driver.config.tool_digital_in_names = ["unknown", "gripper"]
+
+    app.nodes["lqr.kinematic_tree"]["KinematicTree"].config.kinematic_file = kinematic_file
+    lqr_planner = app.nodes["lqr.local_plan"]["MultiJointLqrPlanner"]
+    app.connect(behavior_interface, "joint_target", lqr_interface, "joint_target")
+    lqr_planner.config.speed_min = [-1.5] + [-1.0] * (len(joints) - 1)
+    lqr_planner.config.speed_max = [1.5] + [1.0] * (len(joints) - 1)
+    lqr_planner.config.acceleration_min = [-1.5] + [-1.0] * (len(joints) - 1)
+    lqr_planner.config.acceleration_max = [1.5] + [1.0] * (len(joints) - 1)
 
     # Edges
     app.connect(ur_interface, "arm_state", behavior_interface, "joint_state")
     app.connect(ur_interface, "io_state", behavior_interface, "io_state")
+    app.connect(sim_out, "joint_state", behavior_interface, "joint_state")
+    app.connect(sim_out, "io_state", behavior_interface, "io_state")
     app.connect(behavior_interface, "io_command", ur_interface, "io_command")
     app.connect(behavior_interface, "joint_target", ur_interface, "joint_target")
+    app.connect(behavior_interface, "io_command", sim_in, "io_command") 
 
     app.connect(sim_out, "joint_state", lqr_interface, "joint_state")
     app.connect(sim_out, "joint_state", behavior_interface, "joint_state")
@@ -146,10 +196,13 @@ if __name__ == '__main__':
     widget.config.type = "plot"
     widget.config.channels = [
       {
-        "name": "ur.universal_robots/UniversalRobots/open"
+        "name": "ur.universal_robots/UniversalRobots/gripper"
       },
       {
-        "name": "ur.universal_robots/UniversalRobots/close"
+        "name": "ur.universal_robots/UniversalRobots/pump"
+      },
+      {
+        "name": "ur.universal_robots/UniversalRobots/valve"
       }
     ]
 
