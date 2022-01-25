@@ -29,18 +29,18 @@ def create_composite_atlas(cask_root, joints):
     quantities = [[x, "position", 1] for x in joints]
 
     CART_OBSERVE_WAYPOINT = np.array(
-        [3.2334, -1.4856, 1.7979, 4.8503, -1.5219, 0.5585], dtype=np.dtype("float64"))
+        [0.000, -1.571, -1.571, -1.571, 1.571, 0.000], dtype=np.dtype("float64"))
     CART_ALIGN_WAYPOINT = np.array(
-        [3.3922, -0.8047, 1.7275, 3.7742, -1.5163, 1.8773], dtype=np.dtype("float64"))
+        [0.259, -1.783, -1.834, -1.089, 1.575, 0.280], dtype=np.dtype("float64"))
     CART_DROPOFF_WAYPOINT = np.array(
-        [3.3942, -0.6317, 1.6605, 3.6562, -1.5213, 1.8773], dtype=np.dtype("float64"))
+        [0.274, -1.869, -1.967, -0.835, 1.581, 0.289], dtype=np.dtype("float64"))
 
     DOLLY_OBSERVE_WAYPOINT = np.array(
-        [6.0535, -1.0559, 1.2437, 5.2903, -1.7218, 0.3887], dtype=np.dtype("float64"))
+        [0.000, -1.571, -1.571, -1.571, 1.571, 0.000], dtype=np.dtype("float64"))
     DOLLY_ALIGN_WAYPOINT = np.array(
-        [5.8864, -0.5826, 1.5502, 3.8685, -1.5238, 1.1526], dtype=np.dtype("float64"))
+        [-0.137, -1.833, -1.833, -1.012, 1.553, -0.147], dtype=np.dtype("float64"))
     DOLLY_DROPOFF_WAYPOINT = np.array(
-        [5.8894, -0.3856, 1.4512, 3.7055, -1.5238, 1.1526], dtype=np.dtype("float64"))
+        [-0.137, -1.940, -1.846, -0.961, 1.581, -0.147], dtype=np.dtype("float64"))
 
     cask.write_message(create_composite_waypoint("cart_observe", quantities, CART_OBSERVE_WAYPOINT))
     cask.write_message(create_composite_waypoint("cart_align", quantities, CART_ALIGN_WAYPOINT))
@@ -62,7 +62,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Sortbot Demo")
     parser.add_argument("--cask", help="Path to output atlas", default="/tmp/shuffle_box_waypoints")
     parser.add_argument("--generation", help="Robot generation.", choices=["cb3", "e-series"], default="e-series")
-    parser.add_argument("--robot_ip", help="robot ip", default="192.168.56.101")
+    parser.add_argument("--robot_ip", help="robot ip", default="192.168.0.100")
     parser.add_argument("--headless_mode", help="start driver with headless mode enabled or not",
                         default=False, type=lambda x: (str(x).lower() == 'true'))
     args = parser.parse_args()
