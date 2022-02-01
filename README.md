@@ -49,6 +49,11 @@ bazel run apps/samples/manipulation:simple_joint_control
 
 Digital twin application:
 ===============
+Simple Joint Control
 ```
 bazel run packages/universal_robots/digital_twin_app:simple_joint_control
+```
+Pick and Place Application
+```
+bazel run packages/universal_robots/digital_twin_app:shuffle_box_hardware
 ```
